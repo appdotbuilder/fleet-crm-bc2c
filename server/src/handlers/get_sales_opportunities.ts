@@ -1,13 +1,52 @@
+import { db } from '../db';
+import { salesOpportunitiesTable } from '../db/schema';
 import { type SalesOpportunity, type GetSalesOpportunitiesQuery } from '../schema';
+import { eq, and, desc, type SQL } from 'drizzle-orm';
 
 export async function getSalesOpportunities(query: GetSalesOpportunitiesQuery = {}): Promise<SalesOpportunity[]> {
-    // This is a placeholder declaration! Real code should be implemented here.
-    // The goal of this handler is fetching sales opportunities from the database with optional filtering.
-    // Query parameters:
-    // - company_id: Filter by company ID
-    // - user_id: Filter by user ID (BDM who owns the opportunity)
-    // - stage: Filter by pipeline stage
-    // - limit: Maximum number of results to return
-    // - offset: Number of results to skip for pagination
-    return [];
+  try {
+    // Build conditions array for filtering
+    const conditions: SQL<unknown>[] = [];
+
+    // Apply filters
+    if (query.company_id !== undefined) {
+      conditions.push(eq(salesOpportunitiesTable.company_id, query.company_id));
+    }
+
+    if (query.user_id !== undefined) {
+      conditions.push(eq(salesOpportunitiesTable.user_id, query.user_id));
+    }
+
+    if (query.stage !== undefined) {
+      conditions.push(eq(salesOpportunitiesTable.stage, query.stage));
+    }
+
+    // Build the complete query at once
+    const limit = query.limit || 50; // Default limit
+    const offset = query.offset || 0; // Default offset
+
+    const results = conditions.length > 0
+      ? await db.select()
+          .from(salesOpportunitiesTable)
+          .where(conditions.length === 1 ? conditions[0] : and(...conditions))
+          .orderBy(desc(salesOpportunitiesTable.created_at))
+          .limit(limit)
+          .offset(offset)
+          .execute()
+      : await db.select()
+          .from(salesOpportunitiesTable)
+          .orderBy(desc(salesOpportunitiesTable.created_at))
+          .limit(limit)
+          .offset(offset)
+          .execute();
+
+    // Convert numeric fields and return
+    return results.map(opportunity => ({
+      ...opportunity,
+      value: opportunity.value ? parseFloat(opportunity.value) : null
+    }));
+  } catch (error) {
+    console.error('Failed to get sales opportunities:', error);
+    throw error;
+  }
 }

@@ -1,9 +1,23 @@
+import { db } from '../db';
+import { contactsTable } from '../db/schema';
 import { type Contact } from '../schema';
+import { eq } from 'drizzle-orm';
 
 export async function getContacts(companyId?: number): Promise<Contact[]> {
-    // This is a placeholder declaration! Real code should be implemented here.
-    // The goal of this handler is fetching contacts from the database.
-    // If companyId is provided, filter contacts for that specific company.
-    // If no companyId provided, return all contacts.
-    return [];
+  try {
+    // Build query with proper conditional filtering
+    const results = companyId !== undefined 
+      ? await db.select()
+          .from(contactsTable)
+          .where(eq(contactsTable.company_id, companyId))
+          .execute()
+      : await db.select()
+          .from(contactsTable)
+          .execute();
+
+    return results;
+  } catch (error) {
+    console.error('Failed to fetch contacts:', error);
+    throw error;
+  }
 }
